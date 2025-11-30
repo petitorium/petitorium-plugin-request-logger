@@ -44,10 +44,16 @@ const (
 	ResponseCache            HookType = "response_cache"
 )
 
+// HTTPResponse represents an HTTP response
+type HTTPResponse struct {
+	StatusCode int
+	Body       string
+}
+
 // HookContext provides context data to plugin hooks
 type HookContext struct {
 	Request     *RequestData
-	Response    interface{} // *HTTPResponse from cmd
+	Response    *HTTPResponse
 	Environment map[string]string
 	Config      map[string]interface{}
 }

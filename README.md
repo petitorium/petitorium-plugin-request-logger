@@ -162,7 +162,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Related Projects
 
 - [Petitorium](https://github.com/petitorium/petitorium) - The main API client application
-- [Petitorium Plugins](https://github.com/petitorium/petitorium/tree/main/plugins/examples) - Official plugin examples
+- [Petitorium Auth Injector Plugin](https://github.com/petitorium/petitorium-plugin-auth-injector) - Authentication injection plugin for automatic token handling
 
 ## Support
 
