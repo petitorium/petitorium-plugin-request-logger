@@ -8,10 +8,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"reflect"
+	"strings"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/mitchellh/go-homedir"
+	"github.com/petitorium/petitorium-plugin-sdk/shared"
 	"github.com/petitorium/petitorium-plugin-sdk/types"
 )
 
@@ -36,16 +38,6 @@ func (rl *RequestLogger) Description() string {
 // Hooks returns the hook types this plugin implements
 func (rl *RequestLogger) Hooks() []types.HookType {
 	return []types.HookType{types.PreRequest, types.PostVariableSubstitution, types.PreSend, types.PostReceive}
-}
-
-// HookFuncs returns the hook functions
-func (rl *RequestLogger) HookFuncs() map[types.HookType]types.PluginHook {
-	return map[types.HookType]types.PluginHook{
-		types.PreRequest:               rl.logRawRequest,
-		types.PostVariableSubstitution: rl.logExpandedRequest,
-		types.PreSend:                  rl.logFinalRequest,
-		types.PostReceive:              rl.logResponse,
-	}
 }
 
 // logRawRequest logs the outgoing request with raw template variables
@@ -118,42 +110,40 @@ func (rl *RequestLogger) logFinalRequest(ctx *types.HookContext) error {
 	return rl.writeToLog(logEntry, ctx)
 }
 
+// ExecuteHook executes a specific hook with the given context.
+func (rl *RequestLogger) ExecuteHook(hookType types.HookType, ctx *types.HookContext) (*types.HookContext, error) {
+	var err error
+	switch hookType {
+	case types.PreRequest:
+		err = rl.logRawRequest(ctx)
+	case types.PostVariableSubstitution:
+		err = rl.logExpandedRequest(ctx)
+	case types.PreSend:
+		err = rl.logFinalRequest(ctx)
+	case types.PostReceive:
+		err = rl.logResponse(ctx)
+	}
+	return ctx, err
+}
+
 // logResponse logs the incoming response
 func (rl *RequestLogger) logResponse(ctx *types.HookContext) error {
 	logEntry := fmt.Sprintf("[%s] [RESPONSE]\n", time.Now().Format(time.RFC3339))
 
 	// Try to get response details if available
 	if ctx.Response != nil {
-		// Use reflection to safely access response fields
-		respVal := reflect.ValueOf(ctx.Response)
-		if respVal.Kind() == reflect.Ptr {
-			respVal = respVal.Elem()
+		logEntry += fmt.Sprintf("Status: %d\n", ctx.Response.StatusCode)
+		logEntry += fmt.Sprintf("Status Text: %s\n", ctx.Response.Status)
+
+		if len(ctx.Response.Headers) > 0 {
+			logEntry += "Headers:\n"
+			for key, values := range ctx.Response.Headers {
+				logEntry += fmt.Sprintf("  %s: %s\n", key, strings.Join(values, ", "))
+			}
 		}
 
-		if respVal.IsValid() && respVal.Kind() == reflect.Struct {
-			// Try to get StatusCode field
-			if statusField := respVal.FieldByName("StatusCode"); statusField.IsValid() {
-				if statusField.Kind() == reflect.Int {
-					logEntry += fmt.Sprintf("Status: %d\n", statusField.Int())
-				}
-			}
-
-			// Try to get Status field
-			if statusField := respVal.FieldByName("Status"); statusField.IsValid() {
-				if statusField.Kind() == reflect.String {
-					logEntry += fmt.Sprintf("Status Text: %s\n", statusField.String())
-				}
-			}
-
-			// Try to get Body field
-			if bodyField := respVal.FieldByName("Body"); bodyField.IsValid() {
-				if bodyField.Kind() == reflect.String {
-					body := bodyField.String()
-					if body != "" {
-						logEntry += fmt.Sprintf("Body:\n%s\n", body)
-					}
-				}
-			}
+		if ctx.Response.Body != "" {
+			logEntry += fmt.Sprintf("Body:\n%s\n", ctx.Response.Body)
 		}
 	} else {
 		logEntry += "No response data available\n"
@@ -161,6 +151,16 @@ func (rl *RequestLogger) logResponse(ctx *types.HookContext) error {
 
 	logEntry += "\n"
 	return rl.writeToLog(logEntry, ctx)
+}
+
+func main() {
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: shared.Handshake,
+		Plugins: map[string]plugin.Plugin{
+			"request-logger": &shared.PetitoriumPlugin{Impl: &RequestLogger{}},
+		},
+		GRPCServer: plugin.DefaultGRPCServer,
+	})
 }
 
 // writeToLog writes a log entry to the log file
