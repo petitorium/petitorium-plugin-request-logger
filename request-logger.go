@@ -2,7 +2,8 @@
 // This plugin logs outgoing requests and incoming responses with support for both
 // raw template variables and expanded environment variables.
 //
-// To build: go build -buildmode=plugin -o request-logger.so .
+// To build: go build -o request-logger .
+// For cross-compilation: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o request-logger .
 package main
 
 import (

@@ -1,49 +1,43 @@
-# Detect OS
-ifeq ($(OS),Windows_NT)
-    DETECTED_OS := Windows
-    PLUGIN_DIR := $(USERPROFILE)/.config/petitorium/plugins/available
-    RM := del /F
-    CP := copy
-    PLUGIN_EXT := .dll
-else
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Linux)
-        DETECTED_OS := Linux
-        PLUGIN_DIR := $(HOME)/.config/petitorium/plugins/available
-        RM := rm -f
-        CP := cp
-        PLUGIN_EXT := .so
-    else ifeq ($(UNAME_S),Darwin)
-        DETECTED_OS := macOS
-        PLUGIN_DIR := $(HOME)/.config/petitorium/plugins/available
-        RM := rm -f
-        CP := cp
-        PLUGIN_EXT := .so
-    endif
-endif
+.DEFAULT_GOAL := build
 
-PLUGIN_NAME := request-logger$(PLUGIN_EXT)
-PLUGIN_PATH := $(PLUGIN_DIR)/$(PLUGIN_NAME)
+PLUGIN_NAME := request-logger
+BUILD_DIR := bin
+GO_VERSION := 1.24
 
-clean:
-ifeq ($(DETECTED_OS),Windows)
-	@if exist "$(PLUGIN_PATH)" $(RM) "$(PLUGIN_PATH)"
-	@if exist "$(PLUGIN_NAME)" $(RM) "$(PLUGIN_NAME)"
-else
-	$(RM) $(PLUGIN_PATH) 2>/dev/null || true
-	$(RM) $(PLUGIN_NAME) 2>/dev/null || true
-endif
+linux:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-linux-amd64 .
+
+darwin-amd64:
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-darwin-amd64 .
+
+darwin-arm64:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-darwin-arm64 .
+
+darwin: darwin-amd64 darwin-arm64
+
+windows:
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-windows-amd64.exe .
+
+all: linux darwin windows
 
 build:
-	go build -buildmode=plugin -o $(PLUGIN_NAME) .
+	CGO_ENABLED=0 go build -o $(PLUGIN_NAME) .
 
-install: build
-ifeq ($(DETECTED_OS),Windows)
-	@if not exist "$(PLUGIN_DIR)" mkdir "$(PLUGIN_DIR)"
-	$(CP) $(PLUGIN_NAME) "$(PLUGIN_DIR)\"
-else
-	mkdir -p $(PLUGIN_DIR)
-	$(CP) $(PLUGIN_NAME) $(PLUGIN_DIR)/
-endif
+deps:
+	go mod tidy
 
-.PHONY: build clean install
+fmt:
+	go fmt ./...
+
+vet:
+	go vet ./...
+
+test:
+	go test -v ./...
+
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f $(PLUGIN_NAME)
+	rm -f $(PLUGIN_NAME).exe
+
+.PHONY: all build clean deps fmt vet test linux darwin windows darwin-amd64 darwin-arm64
