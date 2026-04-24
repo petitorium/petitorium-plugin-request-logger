@@ -4,21 +4,33 @@ PLUGIN_NAME := request-logger
 BUILD_DIR := bin
 GO_VERSION := 1.24
 
-linux:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-linux-amd64 .
+linux-amd64:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/linux-amd64/$(PLUGIN_NAME) .
+
+linux: linux-amd64
+
+android-arm64:
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/android-arm64/$(PLUGIN_NAME) .
+
+android-arm:
+	GOOS=linux GOARCH=arm CGO_ENABLED=0 go build -o $(BUILD_DIR)/android-arm/$(PLUGIN_NAME) .
+
+android: android-arm64 android-arm
 
 darwin-amd64:
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-darwin-amd64 .
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/darwin-amd64/$(PLUGIN_NAME) .
 
 darwin-arm64:
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-darwin-arm64 .
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/darwin-arm64/$(PLUGIN_NAME) .
 
 darwin: darwin-amd64 darwin-arm64
 
-windows:
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(PLUGIN_NAME)-windows-amd64.exe .
+windows-amd64:
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o $(BUILD_DIR)/windows-amd64/$(PLUGIN_NAME).exe .
 
-all: linux darwin windows
+windows: windows-amd64
+
+all: linux android darwin windows
 
 build:
 	CGO_ENABLED=0 go build -o $(PLUGIN_NAME) .
@@ -40,4 +52,4 @@ clean:
 	rm -f $(PLUGIN_NAME)
 	rm -f $(PLUGIN_NAME).exe
 
-.PHONY: all build clean deps fmt vet test linux darwin windows darwin-amd64 darwin-arm64
+.PHONY: all build clean deps fmt vet test linux linux-amd64 android android-arm64 android-arm darwin darwin-amd64 darwin-arm64 windows windows-amd64
