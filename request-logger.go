@@ -169,8 +169,22 @@ func (rl *RequestLogger) writeToLog(entry string, ctx *types.HookContext) error 
 	// Get log file path from context config, default to "petitorium.log" if not specified
 	logFile := "petitorium.log"
 	if ctx.Config != nil {
-		if configLogFile, ok := ctx.Config["logFile"].(string); ok && configLogFile != "" {
-			logFile = configLogFile
+		if pluginConfig, ok := ctx.Config["request-logger"].(map[string]interface{}); ok {
+			// Global fallback
+			if configLogFile, ok := pluginConfig["log_file"].(string); ok && configLogFile != "" {
+				logFile = configLogFile
+			}
+
+			// Workspace specific overrides
+			if ctx.Workspace != "" {
+				if workspacesConfig, ok := pluginConfig["workspaces"].(map[string]interface{}); ok {
+					if wsConfig, ok := workspacesConfig[ctx.Workspace].(map[string]interface{}); ok {
+						if configLogFile, ok := wsConfig["log_file"].(string); ok && configLogFile != "" {
+							logFile = configLogFile
+						}
+					}
+				}
+			}
 		}
 	}
 

@@ -30,13 +30,15 @@ cd petitorium-plugin-request-logger
 2. Build the plugin:
 
 ```bash
-go build -buildmode=plugin -o request-logger.so .
+go build -o request-logger .
+# For cross-compilation:
+# GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o request-logger .
 ```
 
 3. Copy the plugin to your Petitorium plugins directory:
 
 ```bash
-cp request-logger.so ~/.config/petitorium/plugins/
+cp request-logger ~/.config/petitorium/plugins/
 ```
 
 ## Configuration
@@ -49,14 +51,18 @@ plugins:
     - request-logger
   config:
     request-logger:
-      logFile: ~/petitorium.log # Optional: defaults to ~/petitorium.log
+      log_file: ~/petitorium.log # Optional: global log file (defaults to ~/petitorium.log)
+      workspaces: # Optional: workspace-specific overrides
+        "My Workspace Name":
+          log_file: ~/my-workspace.log
 ```
 
 ### Configuration Options
 
-| Option    | Type   | Default            | Description                                   |
-| --------- | ------ | ------------------ | --------------------------------------------- |
-| `logFile` | string | `~/petitorium.log` | Path to the log file (supports `~` expansion) |
+| Option       | Type   | Default            | Description                                      |
+| ------------ | ------ | ------------------ | ------------------------------------------------ |
+| `log_file`   | string | `~/petitorium.log` | Path to the log file (supports `~` expansion)    |
+| `workspaces` | object | `null`             | Map of workspace names to specific overrides     |
 
 ## Usage
 
@@ -96,8 +102,6 @@ This plugin implements the following Petitorium hooks:
 
 ```
 petitorium-plugin-request-logger/
-├── types/                  # Standalone plugin types (independent of Petitorium core)
-│    └── types.go           # Plugin interfaces and types
 ├── request-logger.go       # Main plugin implementation
 ├── go.mod                  # Go module definition
 ├── go.sum                  # Dependency checksums
@@ -110,8 +114,8 @@ petitorium-plugin-request-logger/
 # Download dependencies
 go mod tidy
 
-# Build the plugin
-go build -buildmode=plugin -o request-logger.so .
+# Build the plugin executable
+go build -o request-logger .
 
 # Run tests (if any)
 go test ./...
@@ -119,18 +123,19 @@ go test ./...
 
 ### Plugin Architecture
 
-The plugin follows Petitorium's plugin architecture:
+The plugin follows Petitorium's plugin architecture (using HashiCorp go-plugin):
 
-1. **Types Package**: Contains standalone interfaces that match Petitorium's plugin system
-2. **Main Plugin**: Implements the `Plugin` interface and provides hook functions
-3. **Hook Functions**: Process requests/responses at different stages
-4. **Configuration**: Accepts configuration through the HookContext
+1. **SDK Imports**: Uses `github.com/petitorium/petitorium-plugin-sdk`
+2. **Main Plugin**: Implements the `types.Plugin` interface
+3. **Hook Functions**: Process requests/responses at different stages via `ExecuteHook`
+4. **gRPC Server**: Runs a local gRPC server via `plugin.Serve()` for communication with Petitorium
 
 ## Troubleshooting
 
 ### Plugin Not Loading
 
-1. Verify the plugin file exists: `ls -la ~/.config/petitorium/plugins/request-logger.so`
+1. Verify the plugin executable exists: `ls -la ~/.config/petitorium/plugins/request-logger`
+2. Ensure the file has execution permissions: `chmod +x ~/.config/petitorium/plugins/request-logger`
 2. Check Petitorium logs for plugin loading errors
 3. Ensure the plugin is enabled in your configuration
 
@@ -162,7 +167,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Related Projects
 
 - [Petitorium](https://github.com/petitorium/petitorium) - The main API client application
-- [Petitorium Auth Injector Plugin](https://github.com/petitorium/petitorium-plugin-auth-injector) - Authentication injection plugin for automatic token handling
+- [Petitorium Auth Injector Plugin](https://github.com/petitorium/petitorium-plugin-auth-injector) - An authentication injection plugin for [Petitorium](https://github.com/petitorium/petitorium) that automatically injects authentication headers into HTTP requests and captures authentication tokens from responses.
 
 ## Support
 
